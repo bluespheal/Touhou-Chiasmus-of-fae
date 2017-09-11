@@ -1,0 +1,162 @@
+#TouhouDanmakufu [Single]
+#ScriptVersion[3]
+#Title["Second 01"]
+#Text["Simple enemy + bullet tutorial"]
+
+let bossObj;
+let bossX = 0;
+let bossY = 0;
+let animFrame = 0;
+let animFrame2= 0;
+
+let imgBoss = GetCurrentScriptDirectory ~ "cirno.png";
+
+#include "script/default_system/Default_ShotConst.txt"
+
+@Initialize{
+	// define a boss in bossObj and register it	
+	bossObj = ObjEnemy_Create(OBJ_ENEMY_BOSS);
+	ObjEnemy_Regist(bossObj);
+	
+	ObjMove_SetPosition(bossObj,192,-100);
+	
+	//move boss to desired x y location at desired speed
+	ObjMove_SetDestAtSpeed(bossObj,192,120,5);
+
+		
+	mainTask; //run MainTask
+}
+
+@Event{
+	//setting the boss timer and life
+	alternative(GetEventType())
+	case (EV_REQUEST_LIFE) {
+		SetScriptResult(1500);
+	}
+	case (EV_REQUEST_TIMER) {
+		SetScriptResult(60);
+		
+	}
+
+}
+
+@MainLoop{
+	bossX= ObjMove_GetX(bossObj);
+	bossY= ObjMove_GetY(bossObj);
+	
+	//collision for the shoots of the player
+	ObjEnemy_SetIntersectionCircleToShot(bossObj,bossX,bossY,24);
+	ObjEnemy_SetIntersectionCircleToPlayer(bossObj,bossX,bossY,32);
+	
+	
+	yield; 
+
+}
+
+@Finalize{
+
+
+}
+
+// my best friend, sorry Aleskey and Kevvvvvin
+function wait(w) { loop(w) { yield; } } 
+
+
+
+task mainTask{
+	renderBoss;
+	movement;
+
+}
+
+task renderBoss{
+	let dir;
+	let speed;
+	
+	//texture the boss, set centre as true centre
+	ObjPrim_SetTexture(bossObj,imgBoss);
+	ObjSprite2D_SetSourceRect(bossObj,0,0,110,110);
+	ObjSprite2D_SetDestCenter(bossObj);
+	ObjRender_SetScaleXYZ(bossObj,0.7,0.7,0);
+	
+	while(!Obj_IsDeleted(bossObj)){
+		
+		// update boss speed and dir locally
+		
+		dir= ObjMove_GetAngle(bossObj);
+		speed= ObjMove_GetSpeed(bossObj);
+		
+		
+		//animation handling
+		if (speed==0) {
+			ObjRender_SetAngleXYZ(bossObj,0,0,0);
+			ObjSprite2D_SetSourceRect(bossObj,0,0,110,110); 
+		}	
+		else if (cos(dir) < 0) {
+			ObjRender_SetAngleXYZ(bossObj,0,0,0);
+			ObjSprite2D_SetSourceRect(bossObj,0,0,110,110); 
+		}	
+		else if (cos(dir) > 0) {
+			ObjRender_SetAngleXYZ(bossObj,0,180,0);
+			ObjSprite2D_SetSourceRect(bossObj,0,0,110,110); 
+		}	
+		yield;
+	}
+	
+}
+
+task movement{
+	wait (60);
+	fire;
+	wait (30);
+	loop {
+		
+		ObjMove_SetDestAtSpeed(bossObj,192,130,2);
+		wait(45);
+		fire;
+		wait(45);
+		ObjMove_SetDestAtSpeed(bossObj,292,130,2);
+		wait(45);
+		fire;
+		wait(45);
+		ObjMove_SetDestAtSpeed(bossObj,92,130,2);
+		wait(100);
+		fire;
+		wait(45);
+		
+	}
+	
+	
+}
+
+function angleToPlayer {
+	let dir= atan2(GetPlayerY-bossY,GetPlayerX-bossX);
+	return dir;
+	
+	
+}
+
+task fire{
+	let dir = angleToPlayer; 	// call function angleToPlayer, calculate the angle and store it inside dir
+	loop(3){
+		CreateShotA1(bossX,bossY,6,dir+20,15,0);
+		CreateShotA1(bossX,bossY,7,dir+25,15,0);
+		CreateShotA1(bossX,bossY,8,dir+30,15,0);
+		CreateShotA1(bossX,bossY,9,dir+35,15,0);
+
+		CreateShotA1(bossX,bossY,3,dir+3,16,0);
+		CreateShotA1(bossX,bossY,2,dir+1,16,0);
+		CreateShotA1(bossX,bossY,2,dir-1,16,0);
+		CreateShotA1(bossX,bossY,3,dir-3,16,0);
+
+		
+		CreateShotA1(bossX,bossY,6,dir-20,14,0);
+		CreateShotA1(bossX,bossY,7,dir-25,14,0);
+		CreateShotA1(bossX,bossY,8,dir-30,14,0);
+		CreateShotA1(bossX,bossY,9,dir-35,14,0);
+
+		wait(5);
+	
+	}
+}
+

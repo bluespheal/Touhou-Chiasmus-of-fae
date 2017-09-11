@@ -1,0 +1,40 @@
+#TouhouDanmakufu [Plural]
+#ScriptVersion[3]
+#Title["Chemistry Sign :neutralization of ALL"]
+#Text["A Spellcard based on the neutralization, opocites meet, things start to get crazy"]
+
+	@Initialize
+	{
+		TPlural();
+	}
+
+	@MainLoop
+	{
+		yield;
+	}
+
+	@Finalize
+	{
+	}
+
+
+	task TPlural
+	{
+		let dir = GetCurrentScriptDirectory();
+
+		//Creates the boss scene
+		let obj = ObjEnemyBossScene_Create();
+		ObjEnemyBossScene_Add(obj, 0, dir ~ "SP1.3.E.txt");
+		ObjEnemyBossScene_Add(obj, 0, dir ~ "SP1.3.N.txt");
+		ObjEnemyBossScene_LoadInThread(obj);
+		ObjEnemyBossScene_Regist(obj);
+
+		//Stands by until the boss scene is finished
+		while(!Obj_IsDeleted(obj))
+		{
+			yield;
+		}
+
+		//The end of the script
+		CloseScript(GetOwnScriptID());
+	}

@@ -1,0 +1,412 @@
+#TouhouDanmakufu[Single]
+#ScriptVersion[3]
+#Title["Title"]
+#Text["Description of the SP"] 
+//#BGM["./Music.ogg"]
+
+#include"script/default_system/Default_ShotConst.txt"
+
+let objBoss;
+let count = -110;
+let objScene= GetEnemyBossSceneObjectID();
+
+let sun = GetCurrentScriptDirectory ~ "textures/sunflowerfield.png";
+let overlay = GetCurrentScriptDirectory ~ "textures/sunny.png";
+let bbgmusic = GetCurrentScriptDirectory ~ "bgm/Sunrisa.mp3";
+
+
+
+@Event{
+    alternative(GetEventType())
+    case(EV_REQUEST_LIFE){
+        SetScriptResult(12000);
+        }
+    case(EV_REQUEST_TIMER){
+        SetScriptResult(260);
+    }
+    case(EV_REQUEST_SPELL_SCORE){
+        SetScriptResult(1000000);
+    }
+}
+
+@Initialize{
+    objBoss = ObjEnemy_Create(OBJ_ENEMY_BOSS);
+    ObjEnemy_Regist(objBoss);
+    ObjMove_SetDestAtFrame(objBoss,GetCenterX,60 ,60);
+
+    ObjEnemyBossScene_StartSpell(objScene);
+
+
+    TDrawLoop;
+    LoadSound(bbgmusic);
+
+    PlayBGM(bbgmusic,10,145);
+    renderBG;
+
+    TFinalize;
+
+
+}
+
+task TDrawLoop{
+    let imgBoss = GetCurrentScriptDirectory ~ "image.png";
+    ObjPrim_SetTexture(objBoss, imgBoss);
+    ObjSprite2D_SetSourceRect(objBoss,64,1,127,64);
+    ObjSprite2D_SetDestCenter(objBoss);
+}
+
+task renderBG{
+    
+    let scrollTex = 0;
+    
+    //backround
+    let objback = ObjPrim_Create(OBJ_SPRITE_2D);
+    Obj_SetRenderPriorityI(objback,20);
+    ObjPrim_SetTexture(objback,sun);
+    ObjSprite2D_SetSourceRect(objback,0,0,1650,1050);
+    ObjSprite2D_SetDestRect(objback,0,0,GetStgFrameWidth,GetStgFrameHeight);
+    
+    //Spell card overlay texture
+    let overlayObj = ObjPrim_Create(OBJ_SPRITE_2D);
+    Obj_SetRenderPriorityI(overlayObj,21);
+    ObjPrim_SetTexture(overlayObj,overlay);
+    ObjRender_SetBlendType(overlayObj, BLEND_ADD_ARGB);     // blend type ADDITIVE with Alpha ability and RGB colours
+    ObjRender_SetAlpha(overlayObj,100);                     // Set ALPHA value to make it transparent
+    ObjSprite2D_SetSourceRect(overlayObj,0,0,520,520);
+    ObjSprite2D_SetDestRect(overlayObj,0,0,GetStgFrameWidth,GetStgFrameHeight);
+    
+    //As long as the boss is alive, scroll the overlay diagonally from topleft to bottomright
+    while(!Obj_IsDeleted(objBoss)) {
+        ObjSprite2D_SetSourceRect(overlayObj,0-scrollTex,0-scrollTex,512-scrollTex,512-scrollTex);
+        scrollTex += 1;
+        yield;
+    }
+    Obj_Delete(overlayObj);
+    
+}
+
+
+@MainLoop{
+    ObjEnemy_SetIntersectionCircleToShot(objBoss,ObjMove_GetX(objBoss) ,ObjMove_GetY(objBoss) ,32 );
+    ObjEnemy_SetIntersectionCircleToPlayer(objBoss,ObjMove_GetX(objBoss) ,ObjMove_GetY(objBoss) ,24 );
+
+    if(count==-1){movement;}
+    if (count%8==0){fire;}
+    if (count%100==0){shower;}
+    if (count==4700){flower;}
+
+
+    
+
+    
+    
+    count++;
+    yield;
+}
+
+let frame = 400;
+
+task fire{
+    if(ObjEnemy_GetInfo(objBoss,INFO_LIFE) <= 0){return;}
+    let angleT= GetAngleToPlayer(objBoss);
+    let angleS= 0;
+    let obj= CreateShotA2(ObjMove_GetX(objBoss),ObjMove_GetY(objBoss),0,angleT,0,0,DS_BALL_BS_ORANGE,1);
+    ObjMove_AddPatternA1(obj, 3000,0.01,angleT);
+    BulletCommands(obj);
+
+  
+}
+
+task shower{
+    if(ObjEnemy_GetInfo(objBoss,INFO_LIFE) <= 0){return;}
+    let angleT= GetAngleToPlayer(objBoss);
+    let angleS= 0;
+    let obj= CreateShotA2(ObjMove_GetX(objBoss),ObjMove_GetY(objBoss),0.1,angleT,0.1,5,DS_RICE_S_GREEN,1);
+    ObjMove_AddPatternA1(obj, 30,0,angleT);
+    BulletCommands2(obj);
+
+  
+}
+
+let angleF= 0;
+let flow = 0;
+let leafpetalflower= 52;
+
+
+task flower{
+    if(ObjEnemy_GetInfo(objBoss,INFO_LIFE) <= 0){return;}
+    let angleT= GetAngleToPlayer(objBoss);
+    loop(24){
+        loop(70){
+            let obj= CreateShotA2(ObjMove_GetX(objBoss)+flow*cos(angleF*1),ObjMove_GetY(objBoss)+flow*sin(angleF*1),0.1,angleF,0.1,5,leafpetalflower,1);
+            angleF+=360/70;
+            ObjMove_AddPatternA1(obj, 60,0,angleT);
+            BulletCommands3(obj);
+        yield;
+        }
+    flow-=7;
+    if(flow < -20) { leafpetalflower = 43;}
+    if(flow < -50) { leafpetalflower = 26;}
+
+    yield;
+    }
+}
+          
+task BulletCommands(obj){
+    while(ObjMove_GetSpeed(obj)<0.01){yield;}
+    wait(30);
+    let angleT = rand(0,360);
+    loop(4){
+        CreateShotA2(ObjMove_GetX(obj), ObjMove_GetY(obj), 0, angleT,0.1,2, DS_RICE_S_YELLOW, 0);
+        angleT+=360/4;
+    yield;
+    }
+    Obj_Delete(obj);
+}
+
+task BulletCommands2(obj){
+    while(ObjMove_GetSpeed(obj)==0){yield;}
+    wait(120);
+    let angleT = rand(0,360);
+    
+
+    loop(6){
+        let speedo = rand(-1,1);
+        let speedi = rand(-10,10);
+        let speedy = rand(-0.9,-0.1);
+        CreateShotB2(ObjMove_GetX(obj)+speedi, ObjMove_GetY(obj)+speedi, speedo,speedy,0,0.01,3,3, DS_BALL_SS_SKY, 30);
+        
+        angleT+=360/6;
+    yield;
+    }
+    Obj_Delete(obj);
+}
+task BulletCommands3(obj){
+    while(ObjMove_GetSpeed(obj)==0){yield;}
+    wait(1500);
+    let angleT = rand(0,360);
+    
+
+    loop(1){
+        let speedo = rand(-1,1);
+        let speedi = rand(-10,10);
+        let speedy = rand(-0.9,-0.1);
+        CreateShotB2(ObjMove_GetX(obj)+speedi, ObjMove_GetY(obj)+speedi, speedo,speedy,0,0.01,3,3, DS_BALL_SS_SKY, 30);
+        
+        angleT+=360/2;
+    yield;
+    }
+    Obj_Delete(obj);
+}
+task movement{
+    while(ObjEnemy_GetInfo(objBoss,INFO_LIFE)>0){
+        ObjMove_SetDestAtFrame(objBoss, 24,10 , 1);
+        wait(60);
+        ObjMove_SetDestAtFrame(objBoss, 25,70 , 20);
+        wait(60);
+        ObjMove_SetDestAtFrame(objBoss, 25,40 , 20);
+        wait(60);
+        ObjMove_SetDestAtFrame(objBoss, 50,40 , 20);
+        wait(60);
+        ObjMove_SetDestAtFrame(objBoss, 50,10 , 20);
+        wait(60);
+        ObjMove_SetDestAtFrame(objBoss, 50,70 , 20);
+        wait(60);
+
+        ObjMove_SetDestAtFrame(objBoss, 75,10 , 1);
+        wait(60);
+        ObjMove_SetDestAtFrame(objBoss, 65,70 , 20);
+        wait(60);
+        ObjMove_SetDestAtFrame(objBoss, 70,40 , 20);
+        wait(60);
+        ObjMove_SetDestAtFrame(objBoss, 90,40 , 20);
+        wait(60);
+        ObjMove_SetDestAtFrame(objBoss, 75,10 , 20);
+        wait(60);
+        ObjMove_SetDestAtFrame(objBoss, 105,70 ,20);
+        wait(60);
+      
+
+        ObjMove_SetDestAtFrame(objBoss, 115,10 , 1);
+        wait(60);
+        ObjMove_SetDestAtFrame(objBoss, 115,70 , 20);
+        wait(60);
+        ObjMove_SetDestAtFrame(objBoss, 115,40 , 20);
+        wait(60);
+        ObjMove_SetDestAtFrame(objBoss, 135,40 , 20);
+        wait(60);
+        ObjMove_SetDestAtFrame(objBoss, 135,10 , 20);
+        wait(60);
+        ObjMove_SetDestAtFrame(objBoss, 115,10 , 20);
+        wait(60);
+
+        ObjMove_SetDestAtFrame(objBoss, 155,10 , 1);
+        wait(60);
+        ObjMove_SetDestAtFrame(objBoss, 155,70 , 20);
+        wait(60);
+        ObjMove_SetDestAtFrame(objBoss, 155,40 , 20);
+        wait(60);
+        ObjMove_SetDestAtFrame(objBoss, 175,40 , 20);
+        wait(60);
+        ObjMove_SetDestAtFrame(objBoss, 175,10 , 20);
+        wait(60);
+        ObjMove_SetDestAtFrame(objBoss, 155,10 , 20);
+        wait(60);
+
+        ObjMove_SetDestAtFrame(objBoss, 195,10 , 1);
+        wait(60);
+        ObjMove_SetDestAtFrame(objBoss, 215,40 , 20);
+        wait(60);
+        ObjMove_SetDestAtFrame(objBoss, 235,10 , 20);
+        wait(60);
+        ObjMove_SetDestAtFrame(objBoss, 215,40 , 20);
+        wait(60);
+        ObjMove_SetDestAtFrame(objBoss, 215,70 , 20);
+        wait(60);
+
+        ObjMove_SetDestAtFrame(objBoss, 55,110 , 1);
+        wait(60);
+        ObjMove_SetDestAtFrame(objBoss, 55,170 , 20);
+        wait(60);
+        ObjMove_SetDestAtFrame(objBoss, 55,140 , 20);
+        wait(60);
+        ObjMove_SetDestAtFrame(objBoss, 75,140 , 20);
+        wait(60);
+        ObjMove_SetDestAtFrame(objBoss, 75,110 , 20);
+        wait(60);
+        ObjMove_SetDestAtFrame(objBoss, 55,110 , 20);
+        wait(60);
+        ObjMove_SetDestAtFrame(objBoss, 75,140 , 1);
+        wait(60);
+        ObjMove_SetDestAtFrame(objBoss, 80,170 , 20);
+        wait(60);
+        ObjMove_SetDestAtFrame(objBoss, 55,170 , 20);
+        wait(60);
+
+        ObjMove_SetDestAtFrame(objBoss, 95,110 , 1);
+        wait(60);
+        ObjMove_SetDestAtFrame(objBoss, 125,110 ,20);
+        wait(60);
+        ObjMove_SetDestAtFrame(objBoss, 110,110 ,20);
+        wait(60);
+        ObjMove_SetDestAtFrame(objBoss, 110,170 ,20);
+        wait(60);
+        ObjMove_SetDestAtFrame(objBoss, 125,170 , 1);
+        wait(60);
+        ObjMove_SetDestAtFrame(objBoss, 93,170 , 20);
+        wait(60);
+
+        ObjMove_SetDestAtFrame(objBoss, 145,110 , 1);
+        wait(60);
+        ObjMove_SetDestAtFrame(objBoss, 145,170 , 20);
+        wait(60);
+        ObjMove_SetDestAtFrame(objBoss, 145,140 , 20);
+        wait(60);
+        ObjMove_SetDestAtFrame(objBoss, 165,140 , 20);
+        wait(60);
+        ObjMove_SetDestAtFrame(objBoss, 165,110 , 20);
+        wait(60);
+        ObjMove_SetDestAtFrame(objBoss, 145,110 , 20);
+        wait(60);
+        ObjMove_SetDestAtFrame(objBoss, 145,140 , 1);
+        wait(60);
+        ObjMove_SetDestAtFrame(objBoss, 170,170 , 20);
+        wait(60);
+
+        ObjMove_SetDestAtFrame(objBoss, 180,110 , 1);
+        wait(60);
+        ObjMove_SetDestAtFrame(objBoss, 215,110 , 20);
+        wait(60);
+        ObjMove_SetDestAtFrame(objBoss, 195,110 , 1);
+        wait(60);
+        ObjMove_SetDestAtFrame(objBoss, 195,170 , 20);
+        wait(60);
+        
+        ObjMove_SetDestAtFrame(objBoss, 230,110 , 1);
+        wait(60);
+        ObjMove_SetDestAtFrame(objBoss, 230,170 , 20);
+        wait(60);
+        ObjMove_SetDestAtFrame(objBoss, 230,140 , 20);
+        wait(60);
+        ObjMove_SetDestAtFrame(objBoss, 255,140 , 20);
+        wait(60);
+        ObjMove_SetDestAtFrame(objBoss, 255,110 , 20);
+        wait(60);
+        ObjMove_SetDestAtFrame(objBoss, 255,170 , 20);
+        wait(60);
+
+        ObjMove_SetDestAtFrame(objBoss, 270,110 , 1);
+        wait(60);
+        ObjMove_SetDestAtFrame(objBoss, 270,170 , 20);
+        wait(60);
+        ObjMove_SetDestAtFrame(objBoss, 285,160 , 5);
+        wait(10);
+        ObjMove_SetDestAtFrame(objBoss, 290,150 , 5);
+        wait(10);
+        ObjMove_SetDestAtFrame(objBoss, 295,140 , 5);
+        wait(10);
+        ObjMove_SetDestAtFrame(objBoss, 290,130 , 5);
+        wait(10);
+        ObjMove_SetDestAtFrame(objBoss, 285,120 , 5);
+        wait(10);
+        ObjMove_SetDestAtFrame(objBoss, 275,110 , 5);
+        wait(10);
+
+        ObjMove_SetDestAtFrame(objBoss, 310,110 , 1);
+        wait(60);
+        ObjMove_SetDestAtFrame(objBoss, 300,170 , 20);
+        wait(60);
+        ObjMove_SetDestAtFrame(objBoss, 305,140 , 20);
+        wait(60);
+        ObjMove_SetDestAtFrame(objBoss, 325,140 , 20);
+        wait(60);
+        ObjMove_SetDestAtFrame(objBoss, 310,110 , 20);
+        wait(60);
+        ObjMove_SetDestAtFrame(objBoss, 340,170 , 20);
+        wait(60);
+
+        ObjMove_SetDestAtFrame(objBoss, 340,110 , 1);
+        wait(60);
+        ObjMove_SetDestAtFrame(objBoss, 365,140 , 20);
+        wait(60);
+        ObjMove_SetDestAtFrame(objBoss, 380,110 , 20);
+        wait(60);
+        ObjMove_SetDestAtFrame(objBoss, 365,140 , 20);
+        wait(60);
+        ObjMove_SetDestAtFrame(objBoss, 365,170 , 20);
+        wait(60);
+
+        ObjMove_SetDestAtFrame(objBoss, 170,170 , 1);
+        wait(2000);
+
+        let birthday = 0;
+      
+    yield;   
+    }
+ }
+
+
+
+
+task TFinalize {
+        while(ObjEnemy_GetInfo(objBoss,INFO_LIFE)>0){yield;}
+        if(ObjEnemyBossScene_GetInfo(objScene, INFO_PLAYER_SHOOTDOWN_COUNT)
+                +ObjEnemyBossScene_GetInfo(objScene, INFO_PLAYER_SPELL_COUNT) == 0){
+            AddScore(ObjEnemyBossScene_GetInfo(objScene,INFO_SPELL_SCORE));
+            }
+        Obj_Delete(objBoss);
+        DeleteShotAll(TYPE_ALL,TYPE_IMMEDIATE);
+        SetAutoDeleteObject(true);
+        CloseScript(GetOwnScriptID());  
+        return;
+    }
+function GetCenterX{
+     return GetStgFrameWidth/2;
+ }
+function GetCenterY{
+     return GetStgFrameHeight/2;
+ }
+
+function wait(n){
+    loop(n){yield;}
+ }

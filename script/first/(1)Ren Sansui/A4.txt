@@ -1,0 +1,329 @@
+#TouhouDanmakufu[Single]
+#ScriptVersion[3]
+#Title["Test"]
+#Text["I found the seeds of creation, I am full of excitement"] 
+//#BGM["./Music.ogg"]
+
+#include"script/default_system/Default_ShotConst.txt"
+#include "script/default_system/Default_Effect.txt"
+
+
+let objBoss;
+let count = -110;
+let objScene= GetEnemyBossSceneObjectID();
+
+let imgBoss = GetCurrentScriptDirectory ~ "textures/quim.png";
+let sakura = GetCurrentScriptDirectory ~ "textures/forest.png";
+let overlay = GetCurrentScriptDirectory ~ "textures/chem.png";
+let animFrame = 0;
+let animFrame2= 0;
+
+let bbgmusic = GetCurrentScriptDirectory ~ "bgm/Chema.mp3";
+
+let spellcardSFX = GetCurrentScriptDirectory ~ "sfx/SPELLCARD.wav";
+let bossdeathSFX = GetCurrentScriptDirectory ~ "sfx/DEFEATED.wav";
+let attacksfx1 = GetCurrentScriptDirectory ~ "sfx/ATTACK4.wav";
+let attacksfx2 = GetCurrentScriptDirectory ~ "sfx/TWINKLE.wav";
+
+
+
+
+@Event{
+    alternative(GetEventType())
+    case(EV_REQUEST_LIFE){
+        SetScriptResult(5000);
+        }
+    case(EV_REQUEST_TIMER){
+        SetScriptResult(60);
+    }
+    case(EV_REQUEST_SPELL_SCORE){
+        SetScriptResult(1000000);
+    }
+}
+
+@Initialize{
+    objBoss = ObjEnemy_Create(OBJ_ENEMY_BOSS);
+    ObjEnemy_Regist(objBoss);
+    ObjMove_SetDestAtFrame(objBoss,GetCenterX,60 ,60);
+
+    ObjEnemyBossScene_StartSpell(objScene);
+
+
+    TDrawLoop;
+    LoadSound(bbgmusic);
+
+    LoadSound(spellcardSFX);
+    LoadSound(bossdeathSFX);
+    LoadSound(attacksfx1);
+    LoadSound(attacksfx2);
+
+
+
+    LoadSound(bbgmusic);
+
+    PlayBGM(bbgmusic,10,145);
+    renderBG;
+    renderBoss;
+
+    TFinalize;
+
+
+}
+
+task TDrawLoop{
+    let imgBoss = GetCurrentScriptDirectory ~ "image.png";
+    ObjPrim_SetTexture(objBoss, imgBoss);
+    ObjSprite2D_SetSourceRect(objBoss,64,1,127,64);
+    ObjSprite2D_SetDestCenter(objBoss);
+}
+
+task renderBG{
+    
+    let scrollTex = 0;
+    
+    //backround
+    let objback = ObjPrim_Create(OBJ_SPRITE_2D);
+    Obj_SetRenderPriorityI(objback,20);
+    ObjPrim_SetTexture(objback,sakura);
+    ObjSprite2D_SetSourceRect(objback,0,0,450,334);
+    ObjSprite2D_SetDestRect(objback,0,0,GetStgFrameWidth,GetStgFrameHeight);
+    
+    //Spell card overlay texture
+    let overlayObj = ObjPrim_Create(OBJ_SPRITE_2D);
+    Obj_SetRenderPriorityI(overlayObj,21);
+    ObjPrim_SetTexture(overlayObj,overlay);
+    ObjRender_SetBlendType(overlayObj, BLEND_ADD_ARGB);     // blend type ADDITIVE with Alpha ability and RGB colours
+    ObjRender_SetAlpha(overlayObj,100);                     // Set ALPHA value to make it transparent
+    ObjSprite2D_SetSourceRect(overlayObj,0,0,520,520);
+    ObjSprite2D_SetDestRect(overlayObj,0,0,GetStgFrameWidth,GetStgFrameHeight);
+    
+    //As long as the boss is alive, scroll the overlay diagonally from topleft to bottomright
+    while(!Obj_IsDeleted(objBoss)) {
+        ObjSprite2D_SetSourceRect(overlayObj,0-scrollTex,0-scrollTex,512-scrollTex,512-scrollTex);
+        scrollTex += 1;
+        yield;
+    }
+    Obj_Delete(overlayObj);
+    
+}
+
+task renderBoss{
+    let dir;
+    let speed;
+    
+    //texture the boss, set centre as true centre
+    ObjPrim_SetTexture(objBoss,imgBoss);
+    ObjSprite2D_SetSourceRect(objBoss,0,0,64,64);
+    ObjSprite2D_SetDestCenter(objBoss);
+    ObjRender_SetScaleXYZ(objBoss,1.5,1.5,0);
+    
+    while(!Obj_IsDeleted(objBoss)){
+        
+        // update boss speed and dir locally
+        dir= ObjMove_GetAngle(objBoss);
+        speed= ObjMove_GetSpeed(objBoss);
+        
+        
+        //animation handling
+        if (speed==0) {
+            ObjRender_SetAngleXYZ(objBoss,0,0,0);
+            if(animFrame < 15) {ObjSprite2D_SetSourceRect(objBoss,0,0,64,64);} 
+            if(animFrame >= 15 && animFrame < 30) {ObjSprite2D_SetSourceRect(objBoss,64,0,128,64);}
+            if(animFrame >= 30) {ObjSprite2D_SetSourceRect(objBoss,128,0,192,64);}
+            animFrame2= 0;
+        }   
+        else if (cos(dir) < 0) {
+            ObjRender_SetAngleXYZ(objBoss,0,0,0);
+            if(animFrame < 15) {ObjSprite2D_SetSourceRect(objBoss,0,0,64,64);} 
+            if(animFrame >= 15 && animFrame < 30) {ObjSprite2D_SetSourceRect(objBoss,64,0,128,64);}
+            if(animFrame >= 30) {ObjSprite2D_SetSourceRect(objBoss,128,0,192,64);}
+            animFrame2= 0;
+        }   
+        else if (cos(dir) > 0) {
+            ObjRender_SetAngleXYZ(objBoss,0,0,0);
+            if(animFrame < 15) {ObjSprite2D_SetSourceRect(objBoss,0,0,64,64);} 
+            if(animFrame >= 15 && animFrame < 30) {ObjSprite2D_SetSourceRect(objBoss,64,0,128,64);}
+            if(animFrame >= 30) {ObjSprite2D_SetSourceRect(objBoss,128,0,192,64);}
+            animFrame2= 0;
+        }   
+        animFrame++;
+        animFrame2+=1;
+        if(animFrame > 45) { animFrame = 0; }
+        yield;
+    }
+    
+}
+
+
+@MainLoop{
+    ObjEnemy_SetIntersectionCircleToShot(objBoss,ObjMove_GetX(objBoss) ,ObjMove_GetY(objBoss) ,32 );
+    ObjEnemy_SetIntersectionCircleToPlayer(objBoss,ObjMove_GetX(objBoss) ,ObjMove_GetY(objBoss) ,24 );
+    SetShotAutoDeleteClip(64,200,64,64);
+
+    if(count==-1){movement;}
+    if (count%130==0){fire;}
+    if (count%390==0){circle;}
+    
+
+    
+    
+    count++;
+    yield;
+}
+
+
+task fire{
+    let water = 8;
+    let angleT= GetAngleToPlayer(objBoss);
+
+    if(ObjEnemy_GetInfo(objBoss,INFO_LIFE) <= 0){return;}
+    let angleS= 0;
+    loop(2){
+        PlaySE(attacksfx1);
+        let obj= CreateShotA2(ObjMove_GetX(objBoss),ObjMove_GetY(objBoss),7,angleT,-0.3,0,water,1);
+        wait(10);
+
+        ObjMove_AddPatternA1(obj, 40,0.01,angleT);
+        BulletCommands(obj);
+
+    yield;    
+    }
+    wait(5);
+    PlaySE(attacksfx1);
+    let obj= CreateShotA2(ObjMove_GetX(objBoss),ObjMove_GetY(objBoss),7,angleT,-0.3,0,water+5,1);
+
+    ObjMove_AddPatternA1(obj, 40,0.01,angleT);
+    BulletCommands(obj);
+
+
+  
+}
+
+      
+task BulletCommands(obj){
+    while(ObjMove_GetSpeed(obj)==0){yield;}
+    wait(35);
+    let angleT = rand(0,360);
+    
+
+    loop(8){
+        PlaySE(attacksfx2);
+        let speedo = rand(-1,1);
+        let speedi = rand(-10,10);
+        let speedy = rand(-0.9,-0.1);
+        let obj2= CreateShotB2(ObjMove_GetX(obj)+speedi, ObjMove_GetY(obj)+speedi, speedo,speedy,0,0.01,3,5, 45, 5);
+
+        angleT+=360/4;
+    yield;
+    }
+    Obj_Delete(obj);
+}
+
+let angleS= 0;
+let angleF= 0;
+let colorbullet = 50;
+let colorblue = 70;
+
+
+task circle{
+    if(ObjEnemy_GetInfo(objBoss,INFO_LIFE) <= 0){return;}
+    loop(10){
+        let angleT= GetAngleToPlayer(objBoss);
+
+        PlaySE(attacksfx1);
+        let obj = CreateShotA2(ObjMove_GetX(objBoss)+1*cos(angleT*1),ObjMove_GetY(objBoss)+1*sin(angleT*1),-8,angleS,0.3,5,9,1);
+        ObjMove_AddPatternA2(obj, 3,0,NO_CHANGE,0.1,5,10);
+        ObjShot_SetDelay(obj,10 );
+
+        BulletCommandsplant(obj);
+        angleS+=360/10;
+        angleF-=360/10;    
+    yield;    
+    }
+
+  
+}
+
+task BulletCommandsplant(obj){
+    while(ObjMove_GetSpeed(obj)==-8){yield;}
+    wait(10);
+    let angleT = rand(0,360);
+    loop(50){
+        let obj2 = CreateShotA2(ObjMove_GetX(obj),ObjMove_GetY(obj),0.01,angleS,0,0,41,1);
+        ObjMove_AddPatternA3(obj2, 100,0,NO_CHANGE,-0.1,20,-3,43);
+        ObjShot_SetDelay(obj2,30 );
+
+        BulletCommandsplants(obj2);
+
+        angleS+=360/360;
+
+    yield;
+    wait(2);
+    }
+    wait(0);
+    Obj_Delete(obj);
+}
+
+task BulletCommandsplants(obj2){
+    while(ObjMove_GetSpeed(obj2)<0){yield;}
+    wait(150);
+    let angleS = 0;
+    let angleT = rand(0,360);
+    loop(1){
+        PlaySE(attacksfx2);
+        let obj3 = CreateShotA2(ObjMove_GetX(obj2),ObjMove_GetY(obj2),2,angleT,0,0,3,1);
+        ObjMove_AddPatternA3(obj3, 0,NO_CHANGE,NO_CHANGE,-0.02,0.3,-2,NO_CHANGE);
+        ObjShot_SetSourceBlendType(obj3,BLEND_ADD_ARGB );
+        ObjShot_SetDelay(obj3,100 );
+
+        angleT+=360/1;
+
+    yield;
+    wait(2);
+    }
+    Obj_Delete(obj2);
+}
+
+
+
+task movement{
+    while(ObjEnemy_GetInfo(objBoss,INFO_LIFE)>0){
+        ObjMove_SetDestAtFrame(objBoss,(GetCenterX), (GetCenterY-160), 60);
+            wait(240);
+      
+    yield;   
+    }
+ }
+
+
+
+
+task TFinalize {
+        while(ObjEnemy_GetInfo(objBoss,INFO_LIFE)>0){yield;}
+        if(ObjEnemyBossScene_GetInfo(objScene, INFO_PLAYER_SHOOTDOWN_COUNT)
+                +ObjEnemyBossScene_GetInfo(objScene, INFO_PLAYER_SPELL_COUNT) == 0){
+            AddScore(ObjEnemyBossScene_GetInfo(objScene,INFO_SPELL_SCORE));
+            }
+        Obj_Delete(objBoss);
+        PlaySE(bossdeathSFX);
+        TExplosionA(ObjMove_GetX(objBoss),ObjMove_GetY(objBoss),10,0.5);
+        DeleteShotAll(TYPE_ALL,TYPE_ITEM);
+        SetAutoDeleteObject(true);
+        wait(150);
+        CloseScript(GetOwnScriptID());  
+        return;
+    }
+function GetCenterX{
+     return GetStgFrameWidth/2;
+ }
+function GetCenterY{
+     return GetStgFrameHeight/2;
+ }
+
+function wait(n){
+    loop(n){yield;}
+ }
+
+function rand_int(min, max){
+  return round(rand(min, max))
+}

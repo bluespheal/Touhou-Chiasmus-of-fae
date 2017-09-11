@@ -1,0 +1,178 @@
+#TouhouDanmakufu[Single]
+#ScriptVersion[3]
+#Title["Alchemy Sign: First Life Formula"]
+#Text["The formula of the origin of each one of us, water"] 
+//#BGM["./Music.ogg"]
+
+#include"script/default_system/Default_ShotConst.txt"
+
+let objBoss;
+let count = -110;
+let objScene= GetEnemyBossSceneObjectID();
+
+let sun = GetCurrentScriptDirectory ~ "textures/sunflowerfield.png";
+let overlay = GetCurrentScriptDirectory ~ "textures/sunny.png";
+let bbgmusic = GetCurrentScriptDirectory ~ "bgm/Sunrisa.mp3";
+
+
+
+@Event{
+    alternative(GetEventType())
+    case(EV_REQUEST_LIFE){
+        SetScriptResult(4000);
+        }
+    case(EV_REQUEST_TIMER){
+        SetScriptResult(60);
+    }
+    case(EV_REQUEST_SPELL_SCORE){
+        SetScriptResult(1000000);
+    }
+}
+
+@Initialize{
+    objBoss = ObjEnemy_Create(OBJ_ENEMY_BOSS);
+    ObjEnemy_Regist(objBoss);
+    ObjMove_SetDestAtFrame(objBoss,GetCenterX,60 ,60);
+
+    ObjEnemyBossScene_StartSpell(objScene);
+
+
+    TDrawLoop;
+    LoadSound(bbgmusic);
+
+    PlayBGM(bbgmusic,10,145);
+    renderBG;
+
+    TFinalize;
+
+
+}
+
+task TDrawLoop{
+    let imgBoss = GetCurrentScriptDirectory ~ "image.png";
+    ObjPrim_SetTexture(objBoss, imgBoss);
+    ObjSprite2D_SetSourceRect(objBoss,64,1,127,64);
+    ObjSprite2D_SetDestCenter(objBoss);
+}
+
+task renderBG{
+    
+    let scrollTex = 0;
+    
+    //backround
+    let objback = ObjPrim_Create(OBJ_SPRITE_2D);
+    Obj_SetRenderPriorityI(objback,20);
+    ObjPrim_SetTexture(objback,sun);
+    ObjSprite2D_SetSourceRect(objback,0,0,1650,1050);
+    ObjSprite2D_SetDestRect(objback,0,0,GetStgFrameWidth,GetStgFrameHeight);
+    
+    //Spell card overlay texture
+    let overlayObj = ObjPrim_Create(OBJ_SPRITE_2D);
+    Obj_SetRenderPriorityI(overlayObj,21);
+    ObjPrim_SetTexture(overlayObj,overlay);
+    ObjRender_SetBlendType(overlayObj, BLEND_ADD_ARGB);     // blend type ADDITIVE with Alpha ability and RGB colours
+    ObjRender_SetAlpha(overlayObj,100);                     // Set ALPHA value to make it transparent
+    ObjSprite2D_SetSourceRect(overlayObj,0,0,520,520);
+    ObjSprite2D_SetDestRect(overlayObj,0,0,GetStgFrameWidth,GetStgFrameHeight);
+    
+    //As long as the boss is alive, scroll the overlay diagonally from topleft to bottomright
+    while(!Obj_IsDeleted(objBoss)) {
+        ObjSprite2D_SetSourceRect(overlayObj,0-scrollTex,0-scrollTex,512-scrollTex,512-scrollTex);
+        scrollTex += 1;
+        yield;
+    }
+    Obj_Delete(overlayObj);
+    
+}
+
+
+@MainLoop{
+    ObjEnemy_SetIntersectionCircleToShot(objBoss,ObjMove_GetX(objBoss) ,ObjMove_GetY(objBoss) ,32 );
+    ObjEnemy_SetIntersectionCircleToPlayer(objBoss,ObjMove_GetX(objBoss) ,ObjMove_GetY(objBoss) ,24 );
+
+    if(count==-1){movement;}
+    if (count%8==0){fire;}
+    if (count%100==0){shower;}
+    if (count==4700){flower;}
+
+
+    
+
+    
+    
+    count++;
+    yield;
+}
+
+let frame = 400;
+
+task fire{
+    let water = 8;
+    if(ObjEnemy_GetInfo(objBoss,INFO_LIFE) <= 0){return;}
+    let angleT= GetAngleToPlayer(objBoss);
+    let angleS= 0;
+    loop(2){
+        let obj= CreateShotA2(ObjMove_GetX(objBoss),ObjMove_GetY(objBoss),0,angleT,0,0,water,1);
+    yield;    
+    }
+    let obj= CreateShotA2(ObjMove_GetX(objBoss),ObjMove_GetY(objBoss),0,angleT,0,0,water+5,1);
+    ObjMove_AddPatternA1(obj, 100,0.01,angleT);
+    BulletCommands(obj);
+
+  
+}
+
+      
+task BulletCommands(obj){
+    while(ObjMove_GetSpeed(obj)==0){yield;}
+    wait(120);
+    let angleT = rand(0,360);
+    
+
+    loop(6){
+        let speedo = rand(-1,1);
+        let speedi = rand(-10,10);
+        let speedy = rand(-0.9,-0.1);
+        CreateShotB2(ObjMove_GetX(obj)+speedi, ObjMove_GetY(obj)+speedi, speedo,speedy,0,0.01,3,3, DS_BALL_SS_SKY, 30);
+        
+        angleT+=360/6;
+    yield;
+    }
+    Obj_Delete(obj);
+}
+
+
+task movement{
+    while(ObjEnemy_GetInfo(objBoss,INFO_LIFE)>0){
+        ObjMove_SetDestAtFrame(objBoss, rand(GetCenterX+90,GetCenterX-90), rand(GetCenterY-60,GetCenterY-120), 60);
+            wait(240);
+      
+    yield;   
+    }
+ }
+
+
+
+
+task TFinalize {
+        while(ObjEnemy_GetInfo(objBoss,INFO_LIFE)>0){yield;}
+        if(ObjEnemyBossScene_GetInfo(objScene, INFO_PLAYER_SHOOTDOWN_COUNT)
+                +ObjEnemyBossScene_GetInfo(objScene, INFO_PLAYER_SPELL_COUNT) == 0){
+            AddScore(ObjEnemyBossScene_GetInfo(objScene,INFO_SPELL_SCORE));
+            }
+        Obj_Delete(objBoss);
+        DeleteShotAll(TYPE_ALL,TYPE_IMMEDIATE);
+        SetAutoDeleteObject(true);
+        CloseScript(GetOwnScriptID());  
+        return;
+    }
+function GetCenterX{
+     return GetStgFrameWidth/2;
+ }
+function GetCenterY{
+     return GetStgFrameHeight/2;
+ }
+
+function wait(n){
+    loop(n){yield;}
+ }

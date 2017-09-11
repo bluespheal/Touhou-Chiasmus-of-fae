@@ -1,0 +1,287 @@
+#TouhouDanmakufu[Single]
+#ScriptVersion[3]
+#Title["Lunatic:Ripper Sign: A confession from the heart, death (LUNATIC)"]
+#Text["Time to harvest the stems that yield our nourishment, let a new harvest begin anew!"] 
+//#BGM["./Music.ogg"]
+
+#include"script/default_system/Default_ShotConst.txt"
+#include "script/default_system/Default_Effect.txt"
+
+
+let objBoss;
+let count = -110;
+let objScene= GetEnemyBossSceneObjectID();
+
+let imgBoss = GetCurrentScriptDirectory ~ "textures/Tenkama.png";
+let sakura = GetCurrentScriptDirectory ~ "textures/wheat.jpg";
+let overlay = GetCurrentScriptDirectory ~ "textures/harvest.png";
+let animFrame = 0;
+let animFrame2= 0;
+
+let bbgmusic = GetCurrentScriptDirectory ~ "bgm/Tenkama.mp3";
+
+let spellcardSFX = GetCurrentScriptDirectory ~ "sfx/SPELLCARD.wav";
+let bossdeathSFX = GetCurrentScriptDirectory ~ "sfx/DEFEATED.wav";
+let attacksfx1 = GetCurrentScriptDirectory ~ "sfx/ATTACK4.wav";
+let attacksfx2 = GetCurrentScriptDirectory ~ "sfx/TWINKLE.wav";
+
+let objlasers = [];
+
+let waterlist = [];
+
+
+@Event{
+    alternative(GetEventType())
+    case(EV_REQUEST_LIFE){
+        SetScriptResult(6000);
+        }
+    case(EV_REQUEST_TIMER){
+        SetScriptResult(60);
+    }
+    case(EV_REQUEST_SPELL_SCORE){
+        SetScriptResult(1000000);
+    }
+}
+
+@Initialize{
+    objBoss = ObjEnemy_Create(OBJ_ENEMY_BOSS);
+    ObjEnemy_Regist(objBoss);
+    ObjMove_SetDestAtFrame(objBoss,GetCenterX,60 ,60);
+
+    ObjEnemyBossScene_StartSpell(objScene);
+
+
+    TDrawLoop;
+    LoadSound(bbgmusic);
+
+    LoadSound(spellcardSFX);
+    LoadSound(bossdeathSFX);
+    LoadSound(attacksfx1);
+    LoadSound(attacksfx2);
+
+
+
+    LoadSound(bbgmusic);
+
+    PlayBGM(bbgmusic,10,145);
+    renderBG;
+    renderBoss;
+
+    TFinalize;
+
+
+}
+
+task TDrawLoop{
+    let imgBoss = GetCurrentScriptDirectory ~ "image.png";
+    ObjPrim_SetTexture(objBoss, imgBoss);
+    ObjSprite2D_SetSourceRect(objBoss,64,1,127,64);
+    ObjSprite2D_SetDestCenter(objBoss);
+}
+
+task renderBG{
+    
+    let scrollTex = 0;
+    
+    //backround
+    let objback = ObjPrim_Create(OBJ_SPRITE_2D);
+    Obj_SetRenderPriorityI(objback,20);
+    ObjPrim_SetTexture(objback,sakura);
+    ObjSprite2D_SetSourceRect(objback,0,0,450,334);
+    ObjSprite2D_SetDestRect(objback,0,0,GetStgFrameWidth,GetStgFrameHeight);
+    
+    //Spell card overlay texture
+    let overlayObj = ObjPrim_Create(OBJ_SPRITE_2D);
+    Obj_SetRenderPriorityI(overlayObj,21);
+    ObjPrim_SetTexture(overlayObj,overlay);
+    ObjRender_SetBlendType(overlayObj, BLEND_ADD_ARGB);     // blend type ADDITIVE with Alpha ability and RGB colours
+    ObjRender_SetAlpha(overlayObj,100);                     // Set ALPHA value to make it transparent
+    ObjSprite2D_SetSourceRect(overlayObj,0,0,520,520);
+    ObjSprite2D_SetDestRect(overlayObj,0,0,GetStgFrameWidth,GetStgFrameHeight);
+    
+    //As long as the boss is alive, scroll the overlay diagonally from topleft to bottomright
+    while(!Obj_IsDeleted(objBoss)) {
+        ObjSprite2D_SetSourceRect(overlayObj,0-scrollTex,0-scrollTex,512-scrollTex,512-scrollTex);
+        scrollTex += 1;
+        yield;
+    }
+    Obj_Delete(overlayObj);
+    
+}
+
+task renderBoss{
+    let dir;
+    let speed;
+    
+    //texture the boss, set centre as true centre
+    ObjPrim_SetTexture(objBoss,imgBoss);
+    ObjSprite2D_SetSourceRect(objBoss,0,0,64,64);
+    ObjSprite2D_SetDestCenter(objBoss);
+    ObjRender_SetScaleXYZ(objBoss,1.5,1.5,0);
+    
+    while(!Obj_IsDeleted(objBoss)){
+        
+        // update boss speed and dir locally
+        dir= ObjMove_GetAngle(objBoss);
+        speed= ObjMove_GetSpeed(objBoss);
+        
+        
+        //animation handling
+        if (speed==0) {
+            ObjRender_SetAngleXYZ(objBoss,0,0,0);
+            if(animFrame < 15) {ObjSprite2D_SetSourceRect(objBoss,0,0,64,64);} 
+            if(animFrame >= 15 && animFrame < 30) {ObjSprite2D_SetSourceRect(objBoss,64,0,128,64);}
+            if(animFrame >= 30) {ObjSprite2D_SetSourceRect(objBoss,128,0,192,64);}
+            animFrame2= 0;
+        }   
+        else if (cos(dir) < 0) {
+            ObjRender_SetAngleXYZ(objBoss,0,0,0);
+            if(animFrame < 15) {ObjSprite2D_SetSourceRect(objBoss,0,0,64,64);} 
+            if(animFrame >= 15 && animFrame < 30) {ObjSprite2D_SetSourceRect(objBoss,64,0,128,64);}
+            if(animFrame >= 30) {ObjSprite2D_SetSourceRect(objBoss,128,0,192,64);}
+            animFrame2= 0;
+        }   
+        else if (cos(dir) > 0) {
+            ObjRender_SetAngleXYZ(objBoss,0,0,0);
+            if(animFrame < 15) {ObjSprite2D_SetSourceRect(objBoss,0,0,64,64);} 
+            if(animFrame >= 15 && animFrame < 30) {ObjSprite2D_SetSourceRect(objBoss,64,0,128,64);}
+            if(animFrame >= 30) {ObjSprite2D_SetSourceRect(objBoss,128,0,192,64);}
+            animFrame2= 0;
+        }   
+        animFrame++;
+        animFrame2+=1;
+        if(animFrame > 45) { animFrame = 0; }
+        yield;
+    }
+    
+}
+
+
+@MainLoop{
+    ObjEnemy_SetIntersectionCircleToShot(objBoss,ObjMove_GetX(objBoss) ,ObjMove_GetY(objBoss) ,32 );
+    ObjEnemy_SetIntersectionCircleToPlayer(objBoss,ObjMove_GetX(objBoss) ,ObjMove_GetY(objBoss) ,24 );
+    SetShotAutoDeleteClip(200,200,200,64);
+
+    if(count==-1){movement;}
+    if (count%50==0){fire;}
+    if (count%20==0){water;}
+
+   // if (count%400==0){circle;}
+
+   
+
+    
+
+    
+    
+    count++;
+    yield;
+}
+
+let frame = 400;
+let field = 20;
+let leafang= 0;
+
+task fire{
+    let angleT = rand(0,360);
+    let leafang = 0;
+    if(ObjEnemy_GetInfo(objBoss,INFO_LIFE) <= 0){return;}
+    let angleS= 0;
+   
+    //PlaySE(attacksfx1);
+    loop(200){ 
+        let objleaf= CreateShotA2(ObjMove_GetX(objBoss)+50*cos(leafang*1), ObjMove_GetY(objBoss)+50*sin(leafang*1),2,leafang,0,0,185,20); 
+        ObjMove_AddPatternA3(objleaf, 15, 7, NO_CHANGE, -0.6,2 ,2  ,193);
+        ObjMove_AddPatternA3(objleaf, 30, 7, NO_CHANGE, -0.6,0,2  ,205);
+        ObjMove_AddPatternA4(objleaf, 60, 1, 0, 0.02,rand_int(-0.3,0.3),3,GetPlayerObjectID(),213);
+        ObjShot_SetDeleteFrame(objleaf,620 );
+        wait(50);
+
+
+
+    yield;
+
+    leafang+=360/20.1;
+
+    }
+
+
+
+    yield;
+ 
+}
+
+
+
+
+
+
+
+let angleS= 0;
+let angleF= 0;
+let colorbullet = 50;
+let colorblue = 70;
+
+
+
+task water{
+    if(ObjEnemy_GetInfo(objBoss,INFO_LIFE) <= 0){return;}
+    loop(7){
+        let angleT= rand(-0.2,0.2 );
+
+        PlaySE(attacksfx1);
+        let obj = CreateShotA2(ObjMove_GetX(objBoss)+1*cos(angleT*1),ObjMove_GetY(objBoss)+1*sin(angleT*1),-8,angleS,0.3,5,214,10);
+        ObjMove_AddPatternA2(obj, 10,0,NO_CHANGE,angleT,5,1);
+        ObjMove_AddPatternA3(obj, 30,0,NO_CHANGE,angleT,angleT,1,218);
+        //wait(6);
+
+        angleS+=360/7.1;
+
+    yield;    
+
+    }
+   
+}
+
+
+task movement{
+    while(ObjEnemy_GetInfo(objBoss,INFO_LIFE)>0){
+        ObjMove_SetDestAtFrame(objBoss,(GetCenterX), (GetCenterY-160), 60);
+            wait(240);
+      
+    yield;   
+    }
+ }
+
+
+
+
+task TFinalize {
+        while(ObjEnemy_GetInfo(objBoss,INFO_LIFE)>0){yield;}
+        if(ObjEnemyBossScene_GetInfo(objScene, INFO_PLAYER_SHOOTDOWN_COUNT)
+                +ObjEnemyBossScene_GetInfo(objScene, INFO_PLAYER_SPELL_COUNT) == 0){
+            AddScore(ObjEnemyBossScene_GetInfo(objScene,INFO_SPELL_SCORE));
+            }
+        Obj_Delete(objBoss);
+        PlaySE(bossdeathSFX);
+        TExplosionA(ObjMove_GetX(objBoss),ObjMove_GetY(objBoss),10,0.5);
+        DeleteShotAll(TYPE_ALL,TYPE_ITEM);
+        SetAutoDeleteObject(true);
+        wait(150);
+        CloseScript(GetOwnScriptID());  
+        return;
+    }
+function GetCenterX{
+     return GetStgFrameWidth/2;
+ }
+function GetCenterY{
+     return GetStgFrameHeight/2;
+ }
+
+function wait(n){
+    loop(n){yield;}
+ }
+
+function rand_int(min, max){
+  return round(rand(min, max))
+}
